@@ -1,97 +1,125 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function LibraryScreen() {
+  const [intro, setIntro] = useState<any>(null);
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const router = useRouter();
+  const API_BASE = "http://192.168.0.105:8000"; // ⚠️ Thay IP backend của bạn
+
   useEffect(() => {
-    fetch("http://192.168.0.105:8000/library")
-      .then((res) => res.json())
-      .then((json) => setData(json))
-      .catch((err) => console.error("Error:", err))
+    Promise.all([
+      fetch(`${API_BASE}/library/introduction`).then((res) => res.json()),
+      fetch(`${API_BASE}/library`).then((res) => res.json()),
+    ])
+      .then(([introData, libraryData]) => {
+        setIntro(introData);
+        setData(libraryData);
+      })
+      .catch((err) => console.error("❌ Fetch error:", err))
       .finally(() => setLoading(false));
   }, []);
 
   if (loading)
-    return <ActivityIndicator size="large" color="#FF9800" style={{ flex: 1, marginTop: 50 }} />;
-
-  // Lấy phần giới thiệu ở đầu (nếu có)
-  const intro = data.find((item) => item.name.toLowerCase().includes("giới thiệu"));
-  const oranges = data.filter((item) => !item.name.toLowerCase().includes("giới thiệu"));
+    return <ActivityIndicator size="large" color="#FF9800" style={{ flex: 1 }} />;
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={styles.container}>
+      {/* 🟠 Phần giới thiệu */}
       {intro && (
         <View style={styles.introCard}>
-          <Image source={{ uri: intro.image }} style={styles.introImage} />
-          <Text style={styles.introTitle}>{intro.name}</Text>
+          {intro.image && (
+            <Image
+              source={{ uri: `${API_BASE}${intro.image}` }}
+              style={styles.introImage}
+              resizeMode="cover"
+            />
+          )}
+          <Text style={styles.introTitle}>Giới thiệu</Text>
           <Text style={styles.introText}>{intro.description}</Text>
         </View>
       )}
 
-      {oranges.map((item) => (
-        <View key={item.name} style={styles.card}>
-          <Image source={{ uri: item.image }} style={styles.image} />
-          <View style={styles.info}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text>Độ ngọt: {item.sweetness ?? "Không rõ"}</Text>
-            <Text>Nguồn gốc: {item.origin ?? "Không rõ"}</Text>
-          </View>
-        </View>
-      ))}
-    </ScrollView>
+      {/* 🍊 Danh sách cam */}
+      <FlatList
+        data={data}
+        keyExtractor={(item) => item.name}
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.itemCard}
+            onPress={() =>
+              router.push({
+                pathname: "/libraryDetail",
+                params: { name: item.name },
+              })
+            }
+          >
+            <Text style={styles.itemText}>{item.name}</Text>
+            <Ionicons name="arrow-forward" size={22} color="#FF9800" />
+          </TouchableOpacity>
+        )}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#F5F5F5",
+    padding: 10,
+  },
   introCard: {
-    padding: 16,
-    backgroundColor: "#FFF8E1",
-    borderRadius: 12,
-    margin: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    backgroundColor: "#fff",
+    borderRadius: 15,
+    padding: 15,
+    alignItems: "center",
+    marginBottom: 15,
+    elevation: 3,
   },
   introImage: {
     width: "100%",
     height: 180,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 10,
   },
   introTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#FF9800",
-    marginBottom: 6,
+    color: "#2E7D32",
+    marginBottom: 5,
   },
   introText: {
-    fontSize: 15,
-    lineHeight: 22,
+    textAlign: "center",
+    fontSize: 14,
     color: "#555",
   },
-  card: {
+  itemCard: {
     flexDirection: "row",
-    marginHorizontal: 10,
-    marginBottom: 12,
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: "#fff",
-    borderRadius: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 15,
+    marginBottom: 10,
     elevation: 2,
-    overflow: "hidden",
   },
-  image: {
-    width: 100,
-    height: 100,
-  },
-  info: {
-    flex: 1,
-    padding: 10,
-    justifyContent: "center",
-  },
-  name: {
-    fontWeight: "bold",
+  itemText: {
     fontSize: 16,
-    marginBottom: 4,
+    fontWeight: "600",
+    color: "#333",
   },
 });

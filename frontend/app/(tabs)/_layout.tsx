@@ -1,33 +1,68 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import { Platform } from "react-native";
 
 export default function TabLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: "#FF9800" }}>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: "#FF9800", // Màu cam chủ đạo
+        tabBarInactiveTintColor: "#9E9E9E", // Màu xám nhạt cho icon chưa chọn
+        tabBarStyle: {
+          backgroundColor: "#fff",
+          borderTopColor: "#E0E0E0",
+          height: Platform.OS === "ios" ? 85 : 70,
+          paddingBottom: Platform.OS === "ios" ? 25 : 10,
+          paddingTop: 5,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: "600",
+        },
+      }}
+    >
+      {/* 🏠 Trang chính */}
       <Tabs.Screen
         name="index"
         options={{
           title: "Trang chính",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "home" : "home-outline"}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
+
+      {/* 📸 Dự đoán */}
       <Tabs.Screen
         name="camera"
         options={{
           title: "Dự đoán",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="camera" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "camera" : "camera-outline"}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
+
+      {/* 🍊 Thư viện cam */}
       <Tabs.Screen
         name="library"
         options={{
           title: "Thư viện",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="images-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? "images" : "images-outline"}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />

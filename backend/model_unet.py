@@ -9,7 +9,7 @@ from PIL import Image
 
 
 # -------------------------
-# 1️⃣ Định nghĩa mô hình UNet
+# 1️⃣ Định nghĩa mô hình U-Net
 # -------------------------
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -25,6 +25,7 @@ class DoubleConv(nn.Module):
 
     def forward(self, x):
         return self.conv(x)
+
 
 class UNet(nn.Module):
     def __init__(self, n_channels=3, n_classes=1):
@@ -71,15 +72,24 @@ class UNet(nn.Module):
 
         return torch.sigmoid(self.outc(x))
 
+
 # -------------------------
 # 2️⃣ Load model U-Net đã huấn luyện
 # -------------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_path = "unet_model.pth"
+model_path = os.path.join(os.getcwd(), "unet_model.pth")
 
 model_unet = UNet().to(device)
-model_unet.load_state_dict(torch.load(model_path, map_location=device))
-model_unet.eval()
+
+if os.path.exists(model_path):
+    try:
+        model_unet.load_state_dict(torch.load(model_path, map_location=device))
+        model_unet.eval()
+        print("✅ U-Net model loaded successfully!")
+    except Exception as e:
+        print("⚠️ Lỗi khi load mô hình:", e)
+else:
+    print("❌ Không tìm thấy file unet_model.pth trong thư mục backend!")
 
 # -------------------------
 # 3️⃣ Hàm crop cam từ ảnh đầu vào
@@ -90,23 +100,33 @@ transform = transforms.Compose([
 ])
 
 def crop_orange(image_path, threshold=0.5):
-    orig_img = Image.open(image_path).convert("RGB")
-    w, h = orig_img.size
+    """
+    Cắt quả cam từ ảnh đầu vào bằng mô hình U-Net.
+    Trả về ảnh crop hoặc None nếu không phát hiện được cam.
+    """
+    try:
+        orig_img = Image.open(image_path).convert("RGB")
+        w, h = orig_img.size
 
-    img_tensor = transform(orig_img).unsqueeze(0).to(device)
+        img_tensor = transform(orig_img).unsqueeze(0).to(device)
 
-    with torch.no_grad():
-        pred = model_unet(img_tensor)[0, 0].cpu().numpy()
+        with torch.no_grad():
+            pred = model_unet(img_tensor)[0, 0].cpu().numpy()
 
-    mask = (pred > threshold).astype(np.uint8) * 255
-    mask = cv2.resize(mask, (w, h), interpolation=cv2.INTER_NEAREST)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        mask = (pred > threshold).astype(np.uint8) * 255
+        mask = cv2.resize(mask, (w, h), interpolation=cv2.INTER_NEAREST)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    if not contours:
-        return None  # ❌ Không phát hiện cam
+        if not contours:
+            print("⚠️ Không phát hiện được cam trong ảnh.")
+            return None  # ❌ Không phát hiện cam
 
-    x, y, w_box, h_box = cv2.boundingRect(max(contours, key=cv2.contourArea))
-    img_np = np.array(orig_img)
-    cropped = img_np[y:y+h_box, x:x+w_box]
+        x, y, w_box, h_box = cv2.boundingRect(max(contours, key=cv2.contourArea))
+        img_np = np.array(orig_img)
+        cropped = img_np[y:y+h_box, x:x+w_box]
 
-    return cropped  # ✅ Trả về ảnh cam đã crop
+        return cropped  # ✅ Trả về ảnh cam đã crop
+
+    except Exception as e:
+        print(f"❌ Lỗi khi crop cam: {e}")
+        return None
