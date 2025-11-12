@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -10,26 +11,35 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { db } from "../../firebaseConfig";
 
 export default function LibraryScreen() {
   const [intro, setIntro] = useState<any>(null);
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
   const router = useRouter();
-  const API_BASE = "http://192.168.0.105:8000"; // ⚠️ Thay IP backend của bạn
 
   useEffect(() => {
-    Promise.all([
-      fetch(`${API_BASE}/library/introduction`).then((res) => res.json()),
-      fetch(`${API_BASE}/library`).then((res) => res.json()),
-    ])
-      .then(([introData, libraryData]) => {
-        setIntro(introData);
-        setData(libraryData);
-      })
-      .catch((err) => console.error("❌ Fetch error:", err))
-      .finally(() => setLoading(false));
+    const loadData = async () => {
+      try {
+        // 🔸 Lấy phần giới thiệu
+        const introDoc = await getDoc(doc(db, "library", "introduction"));
+        if (introDoc.exists()) {
+          setIntro(introDoc.data());
+        }
+
+        // 🔸 Lấy danh sách cam
+        const querySnap = await getDocs(collection(db, "library_items"));
+        const items = querySnap.docs.map((d) => d.data());
+        setData(items);
+      } catch (err) {
+        console.error("❌ Lỗi tải dữ liệu Firestore:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   if (loading)
@@ -37,12 +47,12 @@ export default function LibraryScreen() {
 
   return (
     <View style={styles.container}>
-      {/* 🟠 Phần giới thiệu */}
+      {/* 🟢 Phần giới thiệu */}
       {intro && (
         <View style={styles.introCard}>
           {intro.image && (
             <Image
-              source={{ uri: `${API_BASE}${intro.image}` }}
+              source={{ uri: intro.image }}
               style={styles.introImage}
               resizeMode="cover"
             />
@@ -59,14 +69,14 @@ export default function LibraryScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.itemCard}
-            onPress={() =>
-              router.push({
-                pathname: "/libraryDetail",
-                params: { name: item.name },
-              })
-            }
+            onPress={() => router.push(`/libraryDetail?name=${item.name}`)}
           >
-            <Text style={styles.itemText}>{item.name}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              {item.image && (
+                <Image source={{ uri: item.image }} style={styles.thumbnail} />
+              )}
+              <Text style={styles.itemText}>{item.name}</Text>
+            </View>
             <Ionicons name="arrow-forward" size={22} color="#FF9800" />
           </TouchableOpacity>
         )}
@@ -121,5 +131,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
+    marginLeft: 10,
+  },
+  thumbnail: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
   },
 });

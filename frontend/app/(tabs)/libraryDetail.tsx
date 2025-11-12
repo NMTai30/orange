@@ -1,71 +1,83 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
+import { db } from "../../firebaseConfig";
 
 export default function LibraryDetailScreen() {
   const { name } = useLocalSearchParams();
-  const orangeName = Array.isArray(name) ? name[0] : name;
-
+  const orangeName = Array.isArray(name) ? name[0] : name; // ✅ tránh lỗi khi name là mảng
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const API_BASE = "http://192.168.0.105:8000"; // ⚠️ Đổi IP theo backend thật của bạn
-
   useEffect(() => {
-    if (!orangeName) return;
+    if (!orangeName) {
+      console.warn("⚠️ Không có tên cam được truyền vào!");
+      setLoading(false);
+      return;
+    }
 
-    fetch(`${API_BASE}/library/${encodeURIComponent(orangeName)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((json) => setData(json))
-      .catch((err) => {
-        console.error("❌ Lỗi khi tải chi tiết cam:", err);
+    const loadDetail = async () => {
+      try {
+        // ✅ Lấy document có field "name" trùng với orangeName
+        const q = query(collection(db, "library_items"), where("name", "==", orangeName));
+        const querySnap = await getDocs(q);
+
+        if (!querySnap.empty) {
+          const docData = querySnap.docs[0].data();
+          setData(docData);
+        } else {
+          console.warn("⚠️ Không tìm thấy cam có tên:", orangeName);
+          setData(null);
+        }
+      } catch (err) {
+        console.error("❌ Lỗi tải chi tiết:", err);
         setData(null);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDetail();
   }, [orangeName]);
 
+  // 🌀 Loading
   if (loading)
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#FF9800" />
-        <Text style={{ marginTop: 10, color: "#666" }}>Đang tải thông tin...</Text>
+        <Text style={{ marginTop: 10, color: "#777" }}>Đang tải dữ liệu...</Text>
       </View>
     );
 
+  // ❌ Không có dữ liệu
   if (!data)
     return (
       <View style={styles.center}>
-        <Ionicons name="alert-circle-outline" size={40} color="red" />
-        <Text style={{ color: "red", marginTop: 10 }}>
-          Không tìm thấy thông tin cam!
-        </Text>
+        <Text style={{ color: "red" }}>Không tìm thấy thông tin cam!</Text>
       </View>
     );
 
+  // ✅ Hiển thị thông tin chi tiết
   return (
     <ScrollView style={styles.container}>
-      {/* Ảnh minh họa */}
       {data.image && (
         <Image
-          source={{ uri: `${API_BASE}${data.image}` }}
+          source={{ uri: data.image }}
           style={styles.image}
           resizeMode="cover"
         />
       )}
 
-      {/* Thông tin chi tiết */}
       <Text style={styles.title}>{data.name}</Text>
+
       <Text style={styles.sweetness}>
         🍊 Độ ngọt:{" "}
         <Text style={{ fontWeight: "bold", color: "#FF9800" }}>
