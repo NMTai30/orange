@@ -7,8 +7,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#FF9800", // Màu cam chủ đạo
-        tabBarInactiveTintColor: "#9E9E9E", // Màu xám nhạt cho icon chưa chọn
+        tabBarActiveTintColor: "#FF9800",
+        tabBarInactiveTintColor: "#9E9E9E",
         tabBarStyle: {
           backgroundColor: "#fff",
           borderTopColor: "#E0E0E0",
