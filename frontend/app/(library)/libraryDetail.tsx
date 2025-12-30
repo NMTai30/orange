@@ -28,7 +28,7 @@ export default function LibraryDetailScreen() {
           setData(snap.docs[0].data());
         }
       } catch (err) {
-        console.error("❌ Lỗi tải chi tiết:", err);
+        console.error("Lỗi tải chi tiết:", err);
       } finally {
         setLoading(false);
       }

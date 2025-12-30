@@ -1,4 +1,3 @@
-# model_yolo.py
 from ultralytics import YOLO
 
 

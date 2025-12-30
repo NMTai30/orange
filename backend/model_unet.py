@@ -1,10 +1,9 @@
-# model_unet.py
 import torch
 import torch.nn as nn
 from torchvision import transforms
 
 
-# ==== UNET LITE (copy nguyên code bạn đã train) ====
+# UNET LITE
 class SepConvBlock(nn.Module):
     def __init__(self, in_c, out_c):
         super().__init__()

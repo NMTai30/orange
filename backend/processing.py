@@ -1,22 +1,17 @@
-# processing.py
 import albumentations as A
 import cv2
 import numpy as np
 import torch
 from albumentations.pytorch import ToTensorV2
 
-# =====================================================
 # CONFIG
-# =====================================================
 UNET_IMG_SIZE = 256
 VIT_IMG_SIZE = 224
 MASK_THRESHOLD = 0.5
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# =====================================================
 # TRANSFORM cho U-Net
-# =====================================================
 unet_transform = A.Compose([
     A.Resize(UNET_IMG_SIZE, UNET_IMG_SIZE),
     A.Normalize(mean=(0.5, 0.5, 0.5),
@@ -24,9 +19,7 @@ unet_transform = A.Compose([
     ToTensorV2(),
 ])
 
-# =====================================================
-# YOLO: detect + crop cam (SAFE)
-# =====================================================
+# YOLO: detect + crop cam
 def yolo_crop_orange(yolo_model, image_bgr):
     results = yolo_model(image_bgr)[0]
 
@@ -46,10 +39,10 @@ def yolo_crop_orange(yolo_model, image_bgr):
     if len(orange_indices) == 0:
         raise ValueError("❌ Phát hiện object nhưng KHÔNG phải cam")
 
-    # ✅ chọn orange confidence cao nhất
+    # chọn orange confidence cao nhất
     best_idx = max(orange_indices, key=lambda i: float(boxes.conf[i]))
 
-    # ✅ FIX unpack
+    # fix unpack
     xyxy = boxes.xyxy[best_idx].cpu().numpy().reshape(-1)
     x1, y1, x2, y2 = map(int, xyxy)
 
@@ -60,15 +53,13 @@ def yolo_crop_orange(yolo_model, image_bgr):
     y2 = max(0, min(y2, h))
 
     if x2 <= x1 or y2 <= y1:
-        raise ValueError("❌ Bounding box không hợp lệ")
+        raise ValueError("Bounding box không hợp lệ")
 
     cropped = image_bgr[y1:y2, x1:x2]
     return cropped
 
 
-# =====================================================
-# U-NET: predict mask
-# =====================================================
+# predict mask
 def unet_predict_mask(unet_model, image_bgr):
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
 
@@ -83,9 +74,7 @@ def unet_predict_mask(unet_model, image_bgr):
     return mask
 
 
-# =====================================================
 # APPLY MASK
-# =====================================================
 def apply_mask(image_bgr, mask):
     mask_resized = cv2.resize(
         mask,
@@ -98,24 +87,22 @@ def apply_mask(image_bgr, mask):
     return masked
 
 
-# =====================================================
 # PIPELINE CHÍNH
-# =====================================================
 def process_image(image_path, yolo_model, unet_model):
     image_bgr = cv2.imread(image_path)
     if image_bgr is None:
         raise ValueError("❌ Không đọc được ảnh")
 
-    # 1️⃣ YOLO crop
+    # YOLO crop
     cropped = yolo_crop_orange(yolo_model, image_bgr)
 
-    # 2️⃣ UNet mask
+    # UNet mask
     mask = unet_predict_mask(unet_model, cropped)
 
-    # 3️⃣ Apply mask
+    # Apply mask
     masked = apply_mask(cropped, mask)
 
-    # 4️⃣ Resize cho ViT
+    # Resize cho ViT
     vit_input = cv2.resize(masked, (VIT_IMG_SIZE, VIT_IMG_SIZE))
 
     return {
@@ -126,14 +113,12 @@ def process_image(image_path, yolo_model, unet_model):
     }
 
 
-# =====================================================
-# PREPROCESS cho ViT (CHUẨN)
-# =====================================================
+# PREPROCESS cho ViT
 def vit_preprocess(image_bgr):
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     image_rgb = image_rgb.astype(np.float32) / 255.0
 
     tensor = torch.from_numpy(image_rgb).permute(2, 0, 1)
-    tensor = tensor.unsqueeze(0)   # ✅ batch dimension
+    tensor = tensor.unsqueeze(0)   
 
     return tensor.to(device)

@@ -21,9 +21,7 @@ export default function CameraScreen() {
   const [result, setResult] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // ===============================
-  // 📸 CHỤP ẢNH
-  // ===============================
+  // CHỤP ẢNH
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) return;
@@ -36,9 +34,7 @@ export default function CameraScreen() {
     }
   };
 
-  // ===============================
-  // 🖼️ CHỌN ẢNH
-  // ===============================
+  // CHỌN ẢNH
   const pickImage = async () => {
     const permission =
       Platform.OS !== "web"
@@ -59,9 +55,7 @@ export default function CameraScreen() {
     }
   };
 
-  // ===============================
-  // 🍊 DỰ ĐOÁN
-  // ===============================
+  // DỰ ĐOÁN
   const predict = async () => {
     if (!imageUri) return;
 
@@ -91,21 +85,19 @@ export default function CameraScreen() {
       const data = await res.json();
 
       if (!res.ok || data.is_orange === false) {
-        setErrorMsg("❌ Không phải quả cam hoặc ảnh không hợp lệ");
+        setErrorMsg("Không phải quả cam hoặc ảnh không hợp lệ");
         return;
       }
 
       setResult(data);
     } catch (err) {
-      setErrorMsg("❌ Không thể kết nối đến server");
+      setErrorMsg("Không thể kết nối đến server");
     } finally {
       setLoading(false);
     }
   };
 
-  // ===============================
-  // 🎨 UI
-  // ===============================
+  // UI
   return (
     <View style={styles.container}>
       <Text style={styles.title}>🍊 Dự đoán độ ngọt quả cam</Text>
@@ -137,14 +129,14 @@ export default function CameraScreen() {
         </View>
       )}
 
-      {/* ❌ LỖI / KHÔNG PHẢI CAM */}
+      {/* LỖI / KHÔNG PHẢI CAM */}
       {errorMsg && (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>{errorMsg}</Text>
         </View>
       )}
 
-      {/* ✅ KẾT QUẢ */}
+      {/* KẾT QUẢ */}
       {result && (
         <View style={styles.resultBox}>
           <Text style={styles.resultTitle}>Kết quả dự đoán</Text>
@@ -158,9 +150,7 @@ export default function CameraScreen() {
   );
 }
 
-// ===============================
-// 🔘 BUTTON COMPONENT
-// ===============================
+// BUTTON COMPONENT
 const Button = ({
   text,
   onPress,
@@ -182,9 +172,7 @@ const Button = ({
   </TouchableOpacity>
 );
 
-// ===============================
-// 🎨 STYLES
-// ===============================
+// STYLES
 const styles = StyleSheet.create({
   container: {
     flex: 1,
