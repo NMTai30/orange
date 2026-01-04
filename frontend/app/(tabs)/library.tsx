@@ -50,7 +50,7 @@ export default function LibraryScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Giới thiệu */}
+      {}
       {intro && (
         <View style={styles.introCard}>
           {intro.image && (
@@ -61,7 +61,7 @@ export default function LibraryScreen() {
         </View>
       )}
 
-      {/* Danh sách cam */}
+      {}
       <FlatList
         data={data}
         keyExtractor={(item) => item.name}

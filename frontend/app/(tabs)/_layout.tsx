@@ -22,7 +22,7 @@ export default function TabLayout() {
         },
       }}
     >
-      {/* Trang chính */}
+      {}
       <Tabs.Screen
         name="index"
         options={{
@@ -37,7 +37,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Dự đoán */}
+      {}
       <Tabs.Screen
         name="camera"
         options={{
@@ -52,7 +52,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Thư viện cam */}
+      {}
       <Tabs.Screen
         name="library"
         options={{
