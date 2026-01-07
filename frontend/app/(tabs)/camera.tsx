@@ -14,7 +14,7 @@ import {
 const API_URL =
   Platform.OS === "web"
     ? "http://localhost:8000/predict"
-    : "http://172.20.10.2:8000/predict";
+    : "http://192.168.100.5:8000/predict";
 
 // ÁNH XẠ ĐỘ NGỌT
 type SweetnessInfo = {
@@ -33,7 +33,7 @@ const getSweetnessInfo = (level: number): SweetnessInfo => {
 export default function CameraScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [results, setResults] = useState<any[] | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // CHỤP ẢNH
@@ -44,7 +44,7 @@ export default function CameraScreen() {
     const res = await ImagePicker.launchCameraAsync({ quality: 1 });
     if (!res.canceled) {
       setImageUri(res.assets[0].uri);
-      setResult(null);
+      setResults(null);
       setErrorMsg(null);
     }
   };
@@ -65,7 +65,7 @@ export default function CameraScreen() {
 
     if (!res.canceled) {
       setImageUri(res.assets[0].uri);
-      setResult(null);
+      setResults(null);
       setErrorMsg(null);
     }
   };
@@ -103,15 +103,12 @@ export default function CameraScreen() {
         return;
       }
 
-      const clampedSweetness = Math.min(
-        9,
-        Math.max(0, Number(data.sweetness))
-      );
+      const cleanedResults = data.predictions.map((r: any) => ({
+        sweetness: Math.min(9, Math.max(1, Number(r.sweetness))),
+        confidence: r.confidence,
+      }));
 
-      setResult({
-        ...data,
-        sweetness: clampedSweetness,
-      });
+      setResults(cleanedResults);
     } catch {
       setErrorMsg("Không thể kết nối đến server");
     } finally {
@@ -121,13 +118,13 @@ export default function CameraScreen() {
 
   // RESET
   const resetPrediction = () => {
-    setResult(null);
     setImageUri(null);
+    setResults(null);
     setErrorMsg(null);
   };
 
-  // TRƯỚC DỰ ĐOÁN
-  if (!result) {
+  // UI TRƯỚC DỰ ĐOÁN
+  if (!results) {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.title}>🍊 Dự đoán độ ngọt quả cam</Text>
@@ -168,77 +165,83 @@ export default function CameraScreen() {
     );
   }
 
-  // SAU DỰ ĐOÁN
-  const sweetnessValue = Number(result.sweetness.toFixed(1));
-  const sweetnessInfo = getSweetnessInfo(sweetnessValue);
-  const confidencePercent = result.confidence * 100;
-
+  // UI SAU DỰ ĐOÁN
   return (
     <ScrollView
-      style={{ backgroundColor: "#fff" }}
       contentContainerStyle={styles.resultContainer}
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.title}>🍊 Dự đoán độ ngọt quả cam</Text>
+      <Text style={styles.title}>🍊 Kết quả dự đoán</Text>
 
       <View style={styles.imageBox}>
         <Image source={{ uri: imageUri! }} style={styles.image} />
       </View>
 
-      <View style={styles.resultBox}>
-        <Text style={styles.resultTitle}>Kết quả dự đoán</Text>
+      {results.map((item, idx) => {
+        const sweetnessInfo = getSweetnessInfo(item.sweetness);
+        const confidencePercent = item.confidence * 100;
 
-        <Text style={[styles.resultText, { color: sweetnessInfo.color }]}>
-          🍊 Độ ngọt: {sweetnessValue}/9
+        return (
+          <View key={idx} style={styles.resultBox}>
+            <Text style={styles.resultTitle}>Quả cam #{idx + 1}</Text>
+
+            <Text style={[styles.resultText, { color: sweetnessInfo.color }]}>
+              🍊 Độ ngọt: {item.sweetness}/9
+            </Text>
+
+            <Text style={[styles.levelText, { color: sweetnessInfo.color }]}>
+              Mức độ: {sweetnessInfo.label}
+            </Text>
+
+            <View style={styles.scaleContainer}>
+              {[1,2,3,4,5,6,7,8,9].map((n) => (
+                <View
+                  key={n}
+                  style={[
+                    styles.scaleItem,
+                    {
+                      backgroundColor:
+                        n <= item.sweetness
+                          ? sweetnessInfo.color
+                          : "#eee",
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+
+            <Text style={styles.confidenceText}>
+              Độ tin cậy: {confidencePercent.toFixed(1)}%
+            </Text>
+          </View>
+        );
+      })}
+
+      {}
+      <View style={styles.explainBox}>
+        <Text style={styles.explainTitle}>📊 Cách hệ thống dự đoán</Text>
+
+        <Text style={styles.explainItem}>
+          • YOLOv8n phát hiện tất cả quả cam trong ảnh
         </Text>
-
-        <Text style={[styles.levelText, { color: sweetnessInfo.color }]}>
-          Mức độ: {sweetnessInfo.label}
+        <Text style={styles.explainItem}>
+          • Các quả cam được đánh số từ trái sang phải dựa trên vị trí bounding box
         </Text>
-
-        {}
-        <View style={styles.scaleContainer}>
-          {[1,2,3,4,5,6,7,8,9].map((n) => (
-            <View
-              key={n}
-              style={[
-                styles.scaleItem,
-                {
-                  backgroundColor:
-                    n <= sweetnessValue ? sweetnessInfo.color : "#eee",
-                },
-              ]}
-            />
-          ))}
-        </View>
-
-        <Text style={styles.confidenceText}>
-          Độ tin cậy dự đoán: {confidencePercent.toFixed(1)}%
+        <Text style={styles.explainItem}>
+          • UNetLite tách nền từng quả cam riêng biệt
         </Text>
-
-        <View style={styles.confBar}>
-          <View
-            style={[
-              styles.confFill,
-              { width: `${confidencePercent}%` },
-            ]}
-          />
-        </View>
+        <Text style={styles.explainItem}>
+          • ViT phân loại độ ngọt theo 9 mức cho từng quả
+        </Text>
 
         <Text style={styles.confidenceExplain}>
-          Độ tin cậy là xác suất mà mô hình AI gán cho mức độ ngọt được dự đoán cao nhất.
-          Giá trị này phản ánh mức độ chắc chắn của mô hình và không đại diện cho độ chính xác tổng thể.
+          Độ tin cậy (confidence) là xác suất mà mô hình AI gán cho mức độ ngọt
+          được dự đoán cao nhất của từng quả cam trong lần suy luận hiện tại,
+          không đại diện cho độ chính xác tổng thể của hệ thống.
         </Text>
-
-        <View style={styles.explainBox}>
-          <Text style={styles.explainTitle}>📊 Cách hệ thống dự đoán</Text>
-          <Text style={styles.explainItem}>• Phát hiện và tách quả cam khỏi nền</Text>
-          <Text style={styles.explainItem}>• Phân tích đặc trưng hình ảnh bằng ViT</Text>
-          <Text style={styles.explainItem}>• Phân loại độ ngọt theo 9 mức</Text>
-        </View>
-
-        <Button text="🔁 Dự đoán quả khác" onPress={resetPrediction} />
       </View>
+
+      <Button text="🔁 Dự đoán ảnh khác" onPress={resetPrediction} />
     </ScrollView>
   );
 }
@@ -275,11 +278,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     alignItems: "center",
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 15,
-  },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 15 },
   imageBox: {
     width: 260,
     height: 260,
@@ -288,7 +287,7 @@ const styles = StyleSheet.create({
     borderColor: "#ffa726",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
   },
   image: { width: "100%", height: "100%", borderRadius: 14 },
   placeholder: { color: "#999" },
@@ -304,32 +303,36 @@ const styles = StyleSheet.create({
   primaryButton: { backgroundColor: "#ffa726" },
   buttonText: { color: "#ffa726", fontWeight: "600" },
   resultBox: {
-    padding: 16,
     width: "92%",
+    padding: 14,
     borderRadius: 14,
     backgroundColor: "#fff3e0",
     alignItems: "center",
+    marginBottom: 12,
   },
-  resultTitle: { fontWeight: "bold", marginBottom: 6 },
-  resultText: { fontSize: 20, fontWeight: "bold", marginTop: 6 },
-  levelText: { marginTop: 4, fontSize: 15, fontWeight: "600" },
-  scaleContainer: {
-    flexDirection: "row",
-    marginTop: 12,
-    marginBottom: 14,
-    width: "100%",
-  },
+  resultTitle: { fontWeight: "bold", marginBottom: 4 },
+  resultText: { fontSize: 18, fontWeight: "bold" },
+  levelText: { marginTop: 4, fontSize: 14, fontWeight: "600" },
+  scaleContainer: { flexDirection: "row", marginVertical: 10, width: "100%" },
   scaleItem: { flex: 1, height: 10, marginHorizontal: 2, borderRadius: 5 },
-  confidenceText: { marginTop: 4, fontSize: 14, fontWeight: "600" },
-  confBar: {
-    width: "100%",
-    height: 8,
-    backgroundColor: "#eee",
-    borderRadius: 4,
-    marginTop: 6,
-    overflow: "hidden",
+  confidenceText: { fontSize: 13, fontWeight: "600" },
+  explainBox: {
+    marginTop: 14,
+    padding: 14,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    width: "94%",
   },
-  confFill: { height: "100%", backgroundColor: "#4caf50" },
+  explainTitle: {
+    fontWeight: "bold",
+    marginBottom: 8,
+    color: "#ef6c00",
+  },
+  explainItem: {
+    fontSize: 13,
+    color: "#555",
+    marginBottom: 4,
+  },
   confidenceExplain: {
     marginTop: 6,
     fontSize: 12,
@@ -337,15 +340,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 16,
   },
-  explainBox: {
-    marginTop: 12,
-    padding: 10,
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    width: "100%",
-  },
-  explainTitle: { fontWeight: "bold", marginBottom: 6, color: "#ef6c00" },
-  explainItem: { fontSize: 13, color: "#555", marginBottom: 2 },
   errorBox: {
     marginTop: 12,
     padding: 10,
