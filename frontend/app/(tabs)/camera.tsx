@@ -33,7 +33,10 @@ const getSweetnessInfo = (level: number): SweetnessInfo => {
 export default function CameraScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any[] | null>(null);
+  const [result, setResult] = useState<{
+    sweetness: number;
+    confidence: number;
+  } | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // CHỤP ẢNH
@@ -44,7 +47,7 @@ export default function CameraScreen() {
     const res = await ImagePicker.launchCameraAsync({ quality: 1 });
     if (!res.canceled) {
       setImageUri(res.assets[0].uri);
-      setResults(null);
+      setResult(null);
       setErrorMsg(null);
     }
   };
@@ -65,7 +68,7 @@ export default function CameraScreen() {
 
     if (!res.canceled) {
       setImageUri(res.assets[0].uri);
-      setResults(null);
+      setResult(null);
       setErrorMsg(null);
     }
   };
@@ -103,12 +106,10 @@ export default function CameraScreen() {
         return;
       }
 
-      const cleanedResults = data.predictions.map((r: any) => ({
-        sweetness: Math.min(9, Math.max(1, Number(r.sweetness))),
-        confidence: r.confidence,
-      }));
-
-      setResults(cleanedResults);
+      setResult({
+        sweetness: Number(data.sweetness.toFixed(2)),
+        confidence: data.confidence,
+      });
     } catch {
       setErrorMsg("Không thể kết nối đến server");
     } finally {
@@ -119,12 +120,12 @@ export default function CameraScreen() {
   // RESET
   const resetPrediction = () => {
     setImageUri(null);
-    setResults(null);
+    setResult(null);
     setErrorMsg(null);
   };
 
   // UI TRƯỚC DỰ ĐOÁN
-  if (!results) {
+  if (!result) {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.title}>🍊 Dự đoán độ ngọt quả cam</Text>
@@ -166,6 +167,9 @@ export default function CameraScreen() {
   }
 
   // UI SAU DỰ ĐOÁN
+  const sweetnessInfo = getSweetnessInfo(result.sweetness);
+  const confidencePercent = result.confidence * 100;
+
   return (
     <ScrollView
       contentContainerStyle={styles.resultContainer}
@@ -177,67 +181,58 @@ export default function CameraScreen() {
         <Image source={{ uri: imageUri! }} style={styles.image} />
       </View>
 
-      {results.map((item, idx) => {
-        const sweetnessInfo = getSweetnessInfo(item.sweetness);
-        const confidencePercent = item.confidence * 100;
+      <View style={styles.resultBox}>
+        <Text style={styles.resultTitle}>Quả cam được chọn</Text>
 
-        return (
-          <View key={idx} style={styles.resultBox}>
-            <Text style={styles.resultTitle}>Quả cam #{idx + 1}</Text>
+        <Text style={[styles.resultText, { color: sweetnessInfo.color }]}>
+          🍊 Độ ngọt: {result.sweetness}/9
+        </Text>
 
-            <Text style={[styles.resultText, { color: sweetnessInfo.color }]}>
-              🍊 Độ ngọt: {item.sweetness}/9
-            </Text>
+        <Text style={[styles.levelText, { color: sweetnessInfo.color }]}>
+          Mức độ: {sweetnessInfo.label}
+        </Text>
 
-            <Text style={[styles.levelText, { color: sweetnessInfo.color }]}>
-              Mức độ: {sweetnessInfo.label}
-            </Text>
+        <View style={styles.scaleContainer}>
+          {[1,2,3,4,5,6,7,8,9].map((n) => (
+            <View
+              key={n}
+              style={[
+                styles.scaleItem,
+                {
+                  backgroundColor:
+                    n <= result.sweetness
+                      ? sweetnessInfo.color
+                      : "#eee",
+                },
+              ]}
+            />
+          ))}
+        </View>
 
-            <View style={styles.scaleContainer}>
-              {[1,2,3,4,5,6,7,8,9].map((n) => (
-                <View
-                  key={n}
-                  style={[
-                    styles.scaleItem,
-                    {
-                      backgroundColor:
-                        n <= item.sweetness
-                          ? sweetnessInfo.color
-                          : "#eee",
-                    },
-                  ]}
-                />
-              ))}
-            </View>
-
-            <Text style={styles.confidenceText}>
-              Độ tin cậy: {confidencePercent.toFixed(1)}%
-            </Text>
-          </View>
-        );
-      })}
+        <Text style={styles.confidenceText}>
+          Độ tin cậy: {confidencePercent.toFixed(1)}%
+        </Text>
+      </View>
 
       {}
       <View style={styles.explainBox}>
         <Text style={styles.explainTitle}>📊 Cách hệ thống dự đoán</Text>
-
         <Text style={styles.explainItem}>
           • YOLOv8n phát hiện tất cả quả cam trong ảnh
         </Text>
         <Text style={styles.explainItem}>
-          • Các quả cam được đánh số từ trái sang phải dựa trên vị trí bounding box
+          • Hệ thống chọn quả cam có độ tin cậy cao nhất
         </Text>
         <Text style={styles.explainItem}>
-          • UNetLite tách nền từng quả cam riêng biệt
+          • UNetLite tách nền quả cam khỏi ảnh
         </Text>
         <Text style={styles.explainItem}>
-          • ViT phân loại độ ngọt theo 9 mức cho từng quả
+          • ViT phân loại độ ngọt và suy ra giá trị liên tục 1–9
         </Text>
 
         <Text style={styles.confidenceExplain}>
           Độ tin cậy (confidence) là xác suất mà mô hình AI gán cho mức độ ngọt
-          được dự đoán cao nhất của từng quả cam trong lần suy luận hiện tại,
-          không đại diện cho độ chính xác tổng thể của hệ thống.
+          được dự đoán cao nhất, không đại diện cho độ chính xác tổng thể.
         </Text>
       </View>
 
